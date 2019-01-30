@@ -27,7 +27,7 @@ module Auxiliary::Hashcat
       [
         OptPath.new('CUSTOM_WORDLIST',      [false, 'The path to an optional custom wordlist']),
         OptInt.new('ITERATION_TIMOUT',      [false, 'The runtime for each iteration of cracking']),
-        OptPath.new('HASHCAT_PATH'          [false, 'The absolute path to the Hashcat executable']),
+        #OptPath.new('HASHCAT_PATH'          [false, 'The absolute path to the Hashcat executable']),
         OptBool.new('MUTATE',               [false, 'Apply common mutations to the Wordlist (SLOW)', false]),
         OptPath.new('POT',                  [false, 'The path to a Hashcat/John POT file to use instead of the default']),
         OptBool.new('USE_CREDS',            [false, 'Use existing credential data saved in the database', true]),
@@ -37,7 +37,13 @@ module Auxiliary::Hashcat
         OptBool.new('USE_ROOT_WORDS',       [false, 'Use the Common Root Words Wordlist', true])
       ], Msf::Auxiliary::Hashcat
     )
-
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    puts("BUGGGG re-enable hashcat_path")
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
   end
 
   # This method creates a new {Metasploit::Framework::Hashcat::Cracker} and populates

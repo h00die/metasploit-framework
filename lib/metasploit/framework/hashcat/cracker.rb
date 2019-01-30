@@ -39,6 +39,10 @@ module Metasploit
         #   @return [String] The wordlist mangling rules to use inside hashcat
         attr_accessor :rules
 
+        # @!attribute attack
+        #   @return [String] The attack mode for hashcat to use
+        attr_accessor :attack
+
         # @!attribute wordlist
         #   @return [String] The file path to the wordlist to use
         attr_accessor :wordlist
@@ -74,7 +78,7 @@ module Metasploit
           if hashcat_path && ::File.file?(hashcat_path)
             bin_path = hashcat_path
           else
-            # Look in the Environment PATH for the john binary
+            # Look in the Environment PATH for the hashcat binary
             path = Rex::FileUtils.find_full_path("hashcat") ||
                 Rex::FileUtils.find_full_path("hashcat.exe")
 
@@ -88,7 +92,7 @@ module Metasploit
 
         # This method runs the command from {#crack_command} and yields each line of output.
         #
-        # @yield [String] a line of output from the john command
+        # @yield [String] a line of output from the hashcat command
         # @return [void]
         def crack
           ::IO.popen(crack_command, "rb") do |fd|
@@ -101,16 +105,16 @@ module Metasploit
         # This method builds an array for the command to actually run the cracker.
         # It builds the command from all of the attributes on the class.
         #
-        # @raise [JohnNotFoundError] if a suitable John binary was never found
+        # @raise [HashcatNotFoundError] if a suitable Hashcat binary was never found
         # @return [Array] An array set up for {::IO.popen} to use
         def crack_command
           cmd_string = binary_path
-          cmd = [ cmd_string,  '--session=' + john_session_id, '--nolog' ]
+          cmd = [ cmd_string,  '--session=' + hashcat_session_id, '--logfile-disable' ]
 
           if pot.present?
             cmd << ( "--potfile-path=" + pot )
           else
-            cmd << ( "--potfile-path=" + john_pot_file)
+            cmd << ( "--potfile-path=" + hashcat_pot_file)
           end
 
           if format.present?
@@ -119,10 +123,19 @@ module Metasploit
 
           if increment.present?
             cmd << ( "--increment")
+            cmd << ( "--increment-max=4") 
+            # anything more than max 4 on even des took 8+min on an i7.
+            # maybe in the future this can be adjusted or made a variable
+            # but current time, we'll leave it as this seems like reasonable
+            # time expectation for a module to run
           end
 
           if rules.present?
             cmd << ( "--rules-file=" + rules )
+          end
+
+          if attack.present?
+            cmd << ( "--attack-mode=" + attack )
           end
 
           if max_runtime.present?
@@ -131,13 +144,15 @@ module Metasploit
 
           cmd << hash_path
 
+          # must be last
           if wordlist.present?
             cmd << ( wordlist )
           end
-
+          puts cmd
+          cmd
         end
 
-        # This runs the show command in john and yields cracked passwords.
+        # This runs the show command in hashcat and yields cracked passwords.
         #
         # @yield [String] the output lines from the command
         # @return [void]
@@ -173,10 +188,11 @@ module Metasploit
         def show_command
           cmd_string = binary_path
 
-          pot_file = pot || john_pot_file
-          cmd = [cmd_string, "--show", "--pot=#{pot_file}", "--hash-type=#{format}" ]
-
+          pot_file = pot || hashcat_pot_file
+          cmd = [cmd_string, "--show", "--potfile-path=#{pot_file}", "--hash-type=#{format}" ]
           cmd << hash_path
+          puts(cmd)
+          cmd
         end
 
         private

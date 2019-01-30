@@ -14,18 +14,20 @@ class MetasploitModule < Msf::Auxiliary
       'Description'     => %Q{
           This module uses Hashcat to identify weak passwords that have been
         acquired from passwd files on AIX systems.  These utilize DES hashing.
+        descript is format 1500 in Hashcat.
       },
       'Author'          => ['h00die'],
       'License'         => MSF_LICENSE
     )
-
   end
 
   def run
     cracker = new_hashcat_cracker
 
+    # hashes is an array to re-reference after cracking
+    # format: ['hash:username:id']
     # create the hash file first, so if there aren't any hashes we can quit early
-    cracker.hash_path = hash_file
+    cracker.hash_path, hashes = hash_file
 
     # generate our wordlist and close the file handle.  max length of DES is 8
     wordlist = wordlist_file(8)
@@ -43,22 +45,16 @@ class MetasploitModule < Msf::Auxiliary
     ['descrypt'].each do |format|
       # dupe our original cracker so we can safely change options between each run
       cracker_instance = cracker.dup
-      cracker_instance.format = '0'
+      cracker_instance.format = '1500'
       print_status "Cracking #{format} hashes in normal wordlist mode..."
       cracker_instance.crack do |line|
         vprint_status line.chomp
       end
 
-      print_status "Cracking #{format} hashes in single mode..."
-      cracker_instance.rules = 'single'
-      cracker_instance.crack do |line|
-        vprint_status line.chomp
-      end
-
       print_status "Cracking #{format} hashes in increment mode..."
-      cracker_instance.rules = nil
       cracker_instance.wordlist = nil
-      cracker_instance.incremental = True
+      cracker_instance.attack = '3'
+      cracker_instance.increment = true
       cracker_instance.crack do |line|
         vprint_status line.chomp
       end
@@ -69,20 +65,26 @@ class MetasploitModule < Msf::Auxiliary
         next if password_line.blank?
         fields = password_line.split(":")
         # If we don't have an expected minimum number of fields, this is probably not a hash line
-        next unless fields.count >=3
-        username = fields.shift
-        core_id  = fields.pop
+        next unless fields.count ==2
+        hash = fields.shift
         password = fields.join(':') # Anything left must be the password. This accounts for passwords with : in them
-        print_good "#{username}:#{password}"
-        create_cracked_credential( username: username, password: password, core_id: core_id)
+        hashes.each do |h|
+          h = h.split(":")
+          next unless h[0] == hash
+          username = h[1]
+          core_id  = h[2]
+          print_good "#{username}:#{password}"
+          create_cracked_credential( username: username, password: password, core_id: core_id)
+        end
       end
     end
     cleanup_files.each do |f|
-      File.delete(f)
+      #File.delete(f)
     end
   end
 
   def hash_file
+    hashes = []
     wrote_hash = false
     hashlist = Rex::Quickfile.new("hashes_tmp")
     framework.db.creds(workspace: myworkspace, type: 'Metasploit::Credential::NonreplayableHash').each do |core|
@@ -90,7 +92,8 @@ class MetasploitModule < Msf::Auxiliary
         user = core.public.username
         hash_string = core.private.data
         id = core.id
-        hashlist.puts "#{user}:#{hash_string}:#{id}:"
+        hashes << "#{hash_string}:#{user}:#{id}"
+        hashlist.puts "#{hash_string}"
         wrote_hash = true
       end
     end
@@ -100,6 +103,6 @@ class MetasploitModule < Msf::Auxiliary
       fail_with Failure::NotFound, 'No DES hashes in database to crack'
     end
     print_status "Hashes Written out to #{hashlist.path}"
-    hashlist.path
+    return hashlist.path, hashes
   end
 end
