@@ -10,18 +10,39 @@ class MetasploitModule < Msf::Auxiliary
 
   def initialize
     super(
-      'Name'            => 'Hashcat AIX Password Cracker',
+      'Name'            => 'Hashcat Linux Password Cracker',
       'Description'     => %Q{
           This module uses Hashcat to identify weak passwords that have been
-        acquired from passwd files on AIX systems.  These utilize DES hashing.
-        descript is format 1500 in Hashcat.
+        acquired from unshadowed passwd files from Unix systems. The module will only crack
+        MD5, BSDi and DES implementations by default. Set Crypt to true to also try to crack
+        Blowfish and SHA(256/512). Warning: This is much slower.
+        MD5 is format 0 in hashcat.
+        BSDi is format 12400 in hashcat.
+        DES is format 14000 in hashcat.
+        Blowfish/bf/bcrypt is format 3200 in hashcat.
+        Sha256 is format 7400 in hashcat.
+        Sha512 is format 1800 in hashcat.
       },
       'Author'          => ['h00die'],
       'License'         => MSF_LICENSE
     )
+    register_options(
+      [
+        OptBool.new('Crypt',[false, 'Try blowfish/sha256/sha512 format hashes(Very Slow)', false])
+      ]
+    )
   end
 
   def run
+
+    formats = [ 'md5crypt']
+#    formats = [ 'md5crypt', 'descrypt', 'bsdicrypt']
+#    if datastore['Crypt']
+#      formats << 'sha256'
+#      formats << 'sha512'
+#      formats << 'bcrypt'
+#    end
+
     cracker = new_hashcat_cracker
 
     # hashes is an array to re-reference after cracking
@@ -42,10 +63,23 @@ class MetasploitModule < Msf::Auxiliary
 
     cleanup_files = [cracker.hash_path, wordlist.path]
 
-    ['descrypt'].each do |format|
+    formats.each do |format|
       # dupe our original cracker so we can safely change options between each run
       cracker_instance = cracker.dup
-      cracker_instance.format = '1500'
+      case format
+        when 'md5crypt'
+          cracker_instance.format = '0'
+        when 'descrypt'
+          cracker_instance.format = '14000'
+        when 'bsdicrypt'
+          cracker_instance.format = '12400'
+        when 'sha256crypt'
+          cracker_instance.format = '7400'
+        when 'sha512crypt'
+          cracker_instance.format = '1800'
+        when 'bcrypt'
+          cracker_instance.format = '3200'
+      end
       print_status "Cracking #{format} hashes in normal wordlist mode..."
       cracker_instance.crack do |line|
         vprint_status line.chomp
@@ -79,7 +113,7 @@ class MetasploitModule < Msf::Auxiliary
       end
     end
     cleanup_files.each do |f|
-      File.delete(f)
+      #File.delete(f)
     end
   end
 
@@ -88,7 +122,7 @@ class MetasploitModule < Msf::Auxiliary
     wrote_hash = false
     hashlist = Rex::Quickfile.new("hashes_tmp")
     framework.db.creds(workspace: myworkspace, type: 'Metasploit::Credential::NonreplayableHash').each do |core|
-      if core.private.jtr_format =~ /des/
+      if core.private.jtr_format =~ /md5|des|bsdi|crypt|bf|sha256|sha512|sha-256|sha-512/
         hashes << "#{core.private.data}:#{core.public.username}:#{core.id}"
         hashlist.puts hash_to_hashcat(core)
         wrote_hash = true
@@ -97,7 +131,7 @@ class MetasploitModule < Msf::Auxiliary
     hashlist.close
     unless wrote_hash # check if we wrote anything and bail early if we didn't
       hashlist.delete
-      fail_with Failure::NotFound, 'No DES hashes in database to crack'
+      fail_with Failure::NotFound, 'No applicable hashes in database to crack'
     end
     print_status "Hashes Written out to #{hashlist.path}"
     return hashlist.path, hashes
