@@ -45,7 +45,7 @@ class MetasploitModule < Msf::Auxiliary
     ['descrypt'].each do |format|
       # dupe our original cracker so we can safely change options between each run
       cracker_instance = cracker.dup
-      cracker_instance.format = '1500'
+      cracker_instance.format = jtr_format_to_hashcat_format(format)
       print_status "Cracking #{format} hashes in normal wordlist mode..."
       cracker_instance.crack do |line|
         vprint_status line.chomp

@@ -83,6 +83,52 @@ module Auxiliary::Hashcat
     wordlist.to_file(max_len)
   end
 
+  # This method takes a {framework.db.cred.private.jtr_format} (string), and
+  # returns the string number associated to the hashcat format
+  #
+  # @param[String] a jtr_format string
+  # @return [String] the format number for Hashcat
+  def jtr_format_to_hashcat_format(format)
+    case format
+    when 'md5crypt'
+      return '500'
+    when 'descrypt'
+      return '14000'
+    when 'bsdicrypt'
+      return '12400'
+    when 'sha256crypt'
+      return '7400'
+    when 'sha512crypt'
+      return '1800'
+    when 'bcrypt'
+      return '3200'
+    when 'lm'
+      return '3000'
+    when 'nt'
+      return '1000'
+    when 'mssql'
+      return '131'
+    when 'mssql12'
+      return '1731'
+    when 'mssql05'
+      return '132'
+    when 'oracle'
+      return '3100'
+    when 'oracle11'
+      return '112'
+    when 'oracle12c'
+      return '12300'
+    when 'postgres', 'dynamic_1034'
+      return '12'
+    when 'mysql'
+      return '200'
+    when 'mysql-sha1'
+      return '300'
+    end
+    nil
+  end
+
+
   # This method takes a {framework.db.cred}, and normalizes it
   # to the string format hashcat is expecting.
   # https://hashcat.net/wiki/doku.php?id=example_hashes
@@ -139,10 +185,6 @@ module Auxiliary::Hashcat
         if cred.private.jtr_format.start_with?('des') # 'des,oracle', not oracle11/12c, hash-mode: 3100
           return "#{cred.public.username}:#{cred.public.username}"
         end
-      when /md5/
-        #            md5(crypt) 
-        # hash-mode: 500
-        return cred.private.data.sub('$1$', '')
       when /sha256/, /sha-256/
         #            sha256 
         # hash-mode: 1411
@@ -151,7 +193,7 @@ module Auxiliary::Hashcat
         #            sha512(crypt) 
         # hash-mode: 1711
         return  cred.private.data.sub('$6$','{SSHA512}')
-      when /des|bsdi|crypt|bf/, /mysql/, /mssql/
+      when /md5|des|bsdi|crypt|bf/, /mysql/, /mssql/
         #            md5(crypt), des(crypt), b(crypt)
         # hash-mode: 500          1500        3200
         #            mssql, mssql, mysql, mysql-sha1

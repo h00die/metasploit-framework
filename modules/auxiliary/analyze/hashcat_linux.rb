@@ -16,7 +16,7 @@ class MetasploitModule < Msf::Auxiliary
         acquired from unshadowed passwd files from Unix systems. The module will only crack
         MD5, BSDi and DES implementations by default. Set Crypt to true to also try to crack
         Blowfish and SHA(256/512). Warning: This is much slower.
-        MD5 is format 0 in hashcat.
+        MD5 is format 500 in hashcat.
         BSDi is format 12400 in hashcat.
         DES is format 14000 in hashcat.
         Blowfish/bf/bcrypt is format 3200 in hashcat.
@@ -35,13 +35,12 @@ class MetasploitModule < Msf::Auxiliary
 
   def run
 
-    formats = [ 'md5crypt']
-#    formats = [ 'md5crypt', 'descrypt', 'bsdicrypt']
-#    if datastore['Crypt']
-#      formats << 'sha256'
-#      formats << 'sha512'
-#      formats << 'bcrypt'
-#    end
+    formats = [ 'md5crypt', 'descrypt', 'bsdicrypt']
+    if datastore['Crypt']
+      formats << 'sha256crypt'
+      formats << 'sha512crypt'
+      formats << 'bcrypt'
+    end
 
     cracker = new_hashcat_cracker
 
@@ -66,19 +65,7 @@ class MetasploitModule < Msf::Auxiliary
     formats.each do |format|
       # dupe our original cracker so we can safely change options between each run
       cracker_instance = cracker.dup
-      case format
-        when 'md5crypt'
-          cracker_instance.format = '0'
-        when 'descrypt'
-          cracker_instance.format = '14000'
-        when 'bsdicrypt'
-          cracker_instance.format = '12400'
-        when 'sha256crypt'
-          cracker_instance.format = '7400'
-        when 'sha512crypt'
-          cracker_instance.format = '1800'
-        when 'bcrypt'
-          cracker_instance.format = '3200'
+      cracker_instance.format = jtr_format_to_hashcat_format(format)
       end
       print_status "Cracking #{format} hashes in normal wordlist mode..."
       cracker_instance.crack do |line|
@@ -113,7 +100,7 @@ class MetasploitModule < Msf::Auxiliary
       end
     end
     cleanup_files.each do |f|
-      #File.delete(f)
+      File.delete(f)
     end
   end
 
