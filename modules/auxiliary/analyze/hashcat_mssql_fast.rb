@@ -69,12 +69,21 @@ class MetasploitModule < Msf::Auxiliary
         next if password_line.blank?
         fields = password_line.split(":")
         # If we don't have an expected minimum number of fields, this is probably not a hash line
-        next unless fields.count ==2
+        next unless fields.count == 2
         hash = fields.shift
         password = fields.join(':') # Anything left must be the password. This accounts for passwords with : in them
         hashes.each do |h|
           h = h.split(":")
-          next unless h[0] == hash
+          if format == 'mssql'
+            # for whatever reason hashcat zeroes out part of the has in --show.
+            # show: 0x0100a607ba7c0000000000000000000000000000000000000000b6d6261460d3f53b279cc6913ce747006a2e3254:FOO
+            # orig: 0x0100A607BA7C54A24D17B565C59F1743776A10250F581D482DA8B6D6261460D3F53B279CC6913CE747006A2E3254
+            hash_zero_format = "#{h[0][0..13]}#{'0'*40}#{h[0][54..hash.length]}".downcase
+            next unless hash_zero_format == hash.downcase
+          else
+            # hashcat returns the hash in uppercase except 0x, so we downcase
+            next unless h[0].downcase == hash.downcase
+          end
           username = h[1]
           core_id  = h[2]
           print_good "#{username}:#{password}"
