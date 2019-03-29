@@ -10,7 +10,7 @@ class MetasploitModule < Msf::Auxiliary
 
   def initialize
     super(
-      'Name'            => 'Hashcat Linux Password Cracker',
+      'Name'            => 'Hashcat MSSQL Password Cracker',
       'Description'     => %Q{
           This module uses Hashcat to identify weak passwords that have been
         acquired from the mssql_hashdump module. 
@@ -91,8 +91,10 @@ class MetasploitModule < Msf::Auxiliary
         end
       end
     end
-    cleanup_files.each do |f|
-      #File.delete(f)
+    if datastore['DeleteTempFiles']
+      cleanup_files.each do |f|
+        File.delete(f)
+      end
     end
   end
 
