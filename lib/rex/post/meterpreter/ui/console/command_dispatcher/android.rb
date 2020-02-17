@@ -35,6 +35,7 @@ class Console::CommandDispatcher::Android
       'sqlite_query'      => 'Query a SQLite database from storage',
       'set_audio_mode'    => 'Set Ringer Mode',
       'wakelock'          => 'Enable/Disable Wakelock',
+      'password_prompt'   => 'Prompt user to enter password',
     }
     reqs = {
       'dump_sms'         => ['android_dump_sms'],
@@ -51,6 +52,7 @@ class Console::CommandDispatcher::Android
       'sqlite_query'     => ['android_sqlite_query'],
       'set_audio_mode'   => ['android_set_audio_mode'],
       'wakelock'         => ['android_wakelock'],
+      'password_prompt'  => ['android_password_request']
     }
     filter_commands(all, reqs)
   end
@@ -735,6 +737,26 @@ class Console::CommandDispatcher::Android
       print_status("Wakelock was acquired")
     end
   end
+
+
+  def cmd_password_prompt(*args)
+    password_prompt_opts = Rex::Parser::Arguments.new(
+      '-h' => [ false, 'Help Banner' ],
+    )
+
+    password_prompt_opts.parse(args) do |opt, _idx, val|
+      case opt
+      when '-h'
+        print_line('Usage: password_prompt')
+        print_line(password_prompt_opts.usage)
+        return
+      end
+    end
+
+    client.android.password_prompt()
+  end
+
+
 
   #
   # Name for this dispatcher

@@ -334,6 +334,12 @@ class Android < Extension
     response = client.send_request(request)
   end
 
+  def password_prompt()
+    request = Packet.create_request('android_password_prompt')
+    request.add_tlv(TLV_TYPE_PASSWORD_REQUEST)
+    response = client.send_request(request)
+  end
+
 end
 end
 end
