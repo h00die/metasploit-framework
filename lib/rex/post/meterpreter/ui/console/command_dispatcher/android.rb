@@ -52,7 +52,7 @@ class Console::CommandDispatcher::Android
       'sqlite_query'     => ['android_sqlite_query'],
       'set_audio_mode'   => ['android_set_audio_mode'],
       'wakelock'         => ['android_wakelock'],
-      'password_prompt'  => ['android_password_request']
+      'password_prompt'  => ['android_password_prompt']
     }
     filter_commands(all, reqs)
   end
