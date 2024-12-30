@@ -37,12 +37,7 @@ jobs:
 
     steps:
       - name: Install system dependencies
-        run: sudo apt-get install libpcap-dev graphviz python3-requests
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.12
+        run: sudo apt-get install libpcap-dev graphviz
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,7 +53,7 @@ jobs:
         run: |
           
           ruby tools/dev/update_wordpress_vulnerabilities.rb
-          # python3 tools/dev/update_joomla_components.py
+          ruby tools/dev/update_joomla_components.rb
           ruby tools/dev/check_external_scripts.rb -u
 
       - name: Commit changes
