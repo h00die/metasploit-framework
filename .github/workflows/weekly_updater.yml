@@ -56,21 +56,26 @@ jobs:
           ruby tools/dev/update_joomla_components.rb
           ruby tools/dev/check_external_scripts.rb -u
 
-      - name: Commit changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Weekly Data update" || echo "No changes to commit"
-          git branch weekly-updates
-          git checkout weekly-updates
-          git push origin weekly-updates
+      #- name: Commit changes
+      #  run: |
+      #    git config --global user.name "github-actions[bot]"
+      #    git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      #    git add .
+      #    git commit -m "Weekly Data update" || echo "No changes to commit"
+      #    git branch weekly-updates
+      #    git checkout weekly-updates
+      #    git push origin weekly-updates
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Update report
+          base: main
           branch: weekly-updates
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           title: "Weekly Data Update"
           body: |
             This pull request was created automatically by a GitHub Action to update the vulnerability scripts.
+          draft: false
