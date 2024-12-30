@@ -51,7 +51,6 @@ jobs:
 
       - name: Run Ruby updater scripts
         run: |
-          
           ruby tools/dev/update_wordpress_vulnerabilities.rb
           ruby tools/dev/update_joomla_components.rb
           ruby tools/dev/check_external_scripts.rb -u
@@ -66,12 +65,15 @@ jobs:
       #    git checkout weekly-updates
       #    git push origin weekly-updates
 
+      - name: Remove vendor folder # prevent git from adding it
+        run: rm -rf vendor
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: Update report
-          base: main
+          base: master
           branch: weekly-updates
           committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
           author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
