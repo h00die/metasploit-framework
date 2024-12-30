@@ -23,7 +23,7 @@ on:
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
-  update-vulnerabilities:
+  update-data-files:
     runs-on: ubuntu-latest
   
     env:
