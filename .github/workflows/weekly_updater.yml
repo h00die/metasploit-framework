@@ -58,7 +58,7 @@ jobs:
         run: |
           
           ruby tools/dev/update_wordpress_vulnerabilities.rb
-          python3 tools/dev/update_joomla_components.py
+          # python3 tools/dev/update_joomla_components.py
           ruby tools/dev/check_external_scripts.rb -u
 
       - name: Commit changes
