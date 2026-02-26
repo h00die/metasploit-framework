@@ -265,7 +265,7 @@ class MetasploitModule < Msf::Auxiliary
       case result.status
       when Metasploit::Model::Login::Status::SUCCESSFUL
         print_brute level: :good, ip: ip, msg: "Success: '#{result.proof.to_s.gsub(/[\r\n\e\b\a]/, ' ')}'"
-        print_brute level: :vgood, ip: ip, msg: "#{result.credential}', ' ')}'"
+        print_brute level: :vgood, ip: ip, msg: result.credential
         begin
           credential_core = create_credential(credential_data)
           credential_data[:core] = credential_core
@@ -276,7 +276,12 @@ class MetasploitModule < Msf::Auxiliary
         end
 
         if datastore['CreateSession']
-          session_setup(result, scanner, used_key: true)
+          begin
+            session_setup(result, scanner, used_key: true)
+          rescue StandardError => e
+            elog('Failed to setup the session', error: e)
+            print_brute level: :error, ip: ip, msg: "Failed to setup the session - #{e.class} #{e.message}"
+          end
         end
         if datastore['GatherProof'] && scanner.get_platform(result.proof) == 'unknown'
           msg = 'While a session may have opened, it may be bugged.  If you experience issues with it, re-run this module with'

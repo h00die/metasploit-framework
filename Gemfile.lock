@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    metasploit-framework (6.4.106)
+    metasploit-framework (6.4.116)
       aarch64
       abbrev
       actionpack (~> 7.2.0)
@@ -46,9 +46,9 @@ PATH
       metasploit-concern
       metasploit-credential
       metasploit-model
-      metasploit-payloads (= 2.0.237)
+      metasploit-payloads (= 2.0.240)
       metasploit_data_models (>= 6.0.7)
-      metasploit_payloads-mettle (= 1.0.45)
+      metasploit_payloads-mettle (= 1.0.46)
       mqtt
       msgpack (~> 1.6.0)
       mutex_m
@@ -331,7 +331,7 @@ GEM
       mutex_m
       railties (~> 7.0)
       zeitwerk
-    metasploit-credential (6.0.19)
+    metasploit-credential (6.0.20)
       bigdecimal
       csv
       drb
@@ -352,18 +352,21 @@ GEM
       drb
       mutex_m
       railties (~> 7.0)
-    metasploit-payloads (2.0.237)
-    metasploit_data_models (6.0.9)
+    metasploit-payloads (2.0.240)
+    metasploit_data_models (6.0.12)
       activerecord (~> 7.0)
       activesupport (~> 7.0)
       arel-helpers
+      bigdecimal
+      drb
       metasploit-concern
-      metasploit-model (>= 3.1)
+      metasploit-model (~> 5.0.4)
+      mutex_m
       pg
       railties (~> 7.0)
       recog
       webrick
-    metasploit_payloads-mettle (1.0.45)
+    metasploit_payloads-mettle (1.0.46)
     method_source (1.1.0)
     mime-types (3.7.0)
       logger
@@ -486,7 +489,7 @@ GEM
       http-cookie (>= 1.0.2, < 2.0)
       mime-types (>= 1.16, < 4.0)
       netrc (~> 0.8)
-    rex-arch (0.1.18)
+    rex-arch (0.1.19)
       rex-text
     rex-bin_tools (0.1.10)
       metasm

