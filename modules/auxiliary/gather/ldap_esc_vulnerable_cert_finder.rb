@@ -78,7 +78,9 @@ class MetasploitModule < Msf::Auxiliary
           'Spencer McIntyre', # ESC13 and ESC15 updates
           'jheysel-r7' # ESC4, ESC9 and ESC10 update
         ],
-        'References' => REFERENCES.values.flatten.map { |r| [ r.ctx_id, r.ctx_val ] }.uniq,
+        'References' => (REFERENCES.values.flatten.map { |r| [ r.ctx_id, r.ctx_val ] }.uniq + [
+          ['ATT&CK', Mitre::Attack::Technique::T1649_STEAL_OR_FORGE_AUTHENTICATION_CERTIFICATES]
+        ]).uniq,
         'DisclosureDate' => '2021-06-17',
         'License' => MSF_LICENSE,
         'DefaultOptions' => {
@@ -1086,8 +1088,14 @@ class MetasploitModule < Msf::Auxiliary
   end
 
   def domain_controller_version_check
-    domain = adds_get_domain_info(@ldap)[:dns_name]
-    user = adds_get_current_user(@ldap)[:sAMAccountName].first.to_s
+    domain_info = adds_get_domain_info(@ldap)
+    return unless domain_info
+
+    user_info = adds_get_current_user(@ldap)
+    return unless user_info
+
+    user = [:sAMAccountName].first.to_s
+    domain = domain_info[:dns_name]
     print_status("user: #{user}, domain: #{domain}")
 
     version_raw = nil

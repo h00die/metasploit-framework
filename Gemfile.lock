@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    metasploit-framework (6.4.112)
+    metasploit-framework (6.4.122)
       aarch64
       abbrev
       actionpack (~> 7.2.0)
@@ -47,7 +47,7 @@ PATH
       metasploit-credential
       metasploit-model
       metasploit-payloads (= 2.0.240)
-      metasploit_data_models (>= 6.0.7)
+      metasploit_data_models (>= 6.0.15)
       metasploit_payloads-mettle (= 1.0.46)
       mqtt
       msgpack (~> 1.6.0)
@@ -331,7 +331,7 @@ GEM
       mutex_m
       railties (~> 7.0)
       zeitwerk
-    metasploit-credential (6.0.19)
+    metasploit-credential (6.0.20)
       bigdecimal
       csv
       drb
@@ -353,12 +353,15 @@ GEM
       mutex_m
       railties (~> 7.0)
     metasploit-payloads (2.0.240)
-    metasploit_data_models (6.0.9)
+    metasploit_data_models (6.0.15)
       activerecord (~> 7.0)
       activesupport (~> 7.0)
       arel-helpers
+      bigdecimal
+      drb
       metasploit-concern
-      metasploit-model (>= 3.1)
+      metasploit-model (~> 5.0.4)
+      mutex_m
       pg
       railties (~> 7.0)
       recog
