@@ -574,9 +574,12 @@ class Creds
     # Some creds may have been cracked that exist outside of the filtered cores list, let's resolve them all to show the cracked value
     cores_by_id = cores.each_with_object({}) { |core, hash| hash[core.id] = core }
     # Map of any originating core ids that have been cracked; The value is cracked core value
+    # Note: Multiple cracked cores may exist for the same originating core (e.g., same hash cracked via different methods)
+    # We only need one cracked core per originating core for display purposes, so we keep the first one found
     cracked_core_id_to_cracked_value = cores.each_with_object({}) do |core, hash|
       next unless core.origin.kind_of?(Metasploit::Credential::Origin::CrackedPassword)
-      hash[core.origin.metasploit_credential_core_id] = core
+      originating_core_id = core.origin.metasploit_credential_core_id
+      hash[originating_core_id] ||= core  # Only set if not already present
     end
 
     cores.each do |core|
