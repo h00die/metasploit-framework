@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'ipaddr'
+Object.autoload(:Set, 'set') unless defined?(Set)
+require 'socket'
 
 module Msf
   # Methods for building the network-graph node/link data used by the
@@ -8,6 +11,11 @@ module Msf
   # including the output sanitization its HTML embedding relies on.
   module Auxiliary::NetworkGraphBuilder
     MSF_NODE_ID = '__msf__'
+    SNMP_NOTE_TYPES = %w[
+      snmp.Hostname snmp.Description snmp.Contact snmp.Location
+      snmp.Network\ interfaces snmp.LLDP\ Neighbors snmp.CDP\ Neighbors
+      snmp.MAC\ Address\ Table
+    ].freeze
 
     def load_workspace_data(ws)
       hosts = ws.hosts.includes(:services, :sessions).all.to_a
@@ -20,11 +28,7 @@ module Msf
       end.uniq
       cve_module_map = build_cve_module_map(all_cve_names)
 
-      snmp_notes = ws.notes.where(ntype: %w[
-        snmp.Hostname snmp.Description snmp.Contact snmp.Location
-        snmp.Network\ interfaces snmp.LLDP\ Neighbors snmp.CDP\ Neighbors
-        snmp.MAC\ Address\ Table
-      ]).includes(:host).to_a
+      snmp_notes = ws.notes.where(ntype: SNMP_NOTE_TYPES).includes(:host).to_a
       snmp_by_host = snmp_notes.each_with_object(Hash.new { |h, k| h[k] = {} }) do |n, m|
         next unless n.host_id
 
@@ -193,7 +197,7 @@ module Msf
                          node_id
                        end
 
-          links_set.add([prev_id, current_id])
+          links_set.add([prev_id, current_id]) unless prev_id == current_id
           prev_id = current_id
         end
 
@@ -230,10 +234,8 @@ module Msf
         display_loots = display_loots.last(loot_limit) if loot_limit > 0
         loot_data = display_loots.map { |l| { ltype: l.ltype || '', name: l.name || '', info: l.info || '', path: l.path || '' } }
 
-        vuln_data = (vuln_by_host[host.id] || []).filter_map do |v|
+        vuln_data = (vuln_by_host[host.id] || []).map do |v|
           cve_refs = v.refs.map(&:name).select { |r| r.upcase.start_with?('CVE-') }.map(&:upcase)
-          next if cve_refs.empty?
-
           modules_for_vuln = cve_refs.flat_map { |cve| cve_module_map[cve] || [] }.uniq.sort
           {
             name: v.name || '', info: v.info || '',
@@ -294,7 +296,7 @@ module Msf
           arch: host.arch || '', compromised: active_sessions.any?,
           ever_compromised: host_sessions.any?, session_count: active_sessions.count,
           sessions: session_data, services: service_data, loots: loot_data,
-          vulns: vuln_data, vuln_cve_count: vuln_data.length,
+          vulns: vuln_data, vuln_cve_count: vuln_data.count { |vuln| vuln[:cve_refs].any? },
           vuln_module_count: vuln_data.count { |v| v[:msf_modules].any? },
           event_modules: event_modules_by_ip[host.address.to_s].to_a.sort,
           module_runs: host_module_runs, creds: cred_data,
@@ -363,16 +365,21 @@ module Msf
 
     def find_pivot_for_host(host, subnet_to_pivot)
       ip = IPAddr.new(host.address.to_s)
+      best_pivot_host_id = nil
+      best_prefix = -1
       subnet_to_pivot.each do |cidr, pivot_host_id|
         next if pivot_host_id == host.id # a pivot never routes behind itself
 
         subnet_ip, netmask = cidr.split('/')
         net = IPAddr.new("#{subnet_ip}/#{netmask}")
-        return pivot_host_id if net.include?(ip)
+        next unless net.include?(ip) && net.prefix > best_prefix
+
+        best_pivot_host_id = pivot_host_id
+        best_prefix = net.prefix
       rescue ArgumentError
         next
       end
-      nil
+      best_pivot_host_id
     rescue ArgumentError
       nil
     end
@@ -405,7 +412,10 @@ module Msf
 
     def utf8_sanitize(obj)
       case obj
-      when Hash then obj.transform_values { |v| utf8_sanitize(v) }
+      when Hash
+        obj.each_with_object({}) do |(key, value), sanitized|
+          sanitized[utf8_sanitize(key)] = utf8_sanitize(value)
+        end
       when Array then obj.map { |v| utf8_sanitize(v) }
       when String
         return obj if obj.encoding == ::Encoding::UTF_8 && obj.valid_encoding?
